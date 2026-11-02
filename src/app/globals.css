@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --color-roxo: #6d28d9;
+  --color-roxo-escuro: #5b21b6;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased;
+}
