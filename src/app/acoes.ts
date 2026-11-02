@@ -2,115 +2,193 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-import { reaisParaCentavos } from "@/lib/acerto";
-import { bancoDeDados } from "@/lib/db";
-import { normalizarChavePix, type TipoChavePix } from "@/lib/pix";
+import { bancoDeDados, lerRole, transferenciasPendentes } from "@/lib/db";
+import { dentroDoLimite } from "@/lib/limite";
+import { ehUuid, LIMITES, validarGasto, validarNomeRole, validarParticipante } from "@/lib/validacao";
 
 export type EstadoForm = { erro?: string; ok?: boolean };
 
-const Uuid = z.uuid();
+const MUITAS_TENTATIVAS = { erro: "Muitas tentativas seguidas. Espere alguns minutos e tente de novo." };
+const ROLE_INVALIDO = { erro: "Rolê inválido." };
 
 export async function criarRole(_: EstadoForm, form: FormData): Promise<EstadoForm> {
-  const nome = String(form.get("nome") ?? "").trim();
-  if (!nome || nome.length > 80) return { erro: "Dê um nome ao rolê (até 80 caracteres)." };
+  const nome = validarNomeRole(form.get("nome"));
+  if (!nome.ok) return { erro: nome.erro };
+  if (!(await dentroDoLimite("criar-role", 10, 3600))) return MUITAS_TENTATIVAS;
 
-  const { data, error } = await bancoDeDados().from("roles").insert({ nome }).select("id").single();
+  const { data, error } = await bancoDeDados().from("roles").insert({ nome: nome.dados }).select("id").single();
   if (error) return { erro: "Não foi possível criar o rolê." };
   redirect(`/r/${data.id}`);
 }
+
+export async function apagarRole(roleId: string): Promise<EstadoForm> {
+  if (!ehUuid(roleId)) return ROLE_INVALIDO;
+  const { error } = await bancoDeDados().from("roles").delete().eq("id", roleId);
+  if (error) return { erro: "Não foi possível apagar o rolê." };
+  redirect("/?apagado=1");
+}
+
+function lerParticipante(form: FormData) {
+  return validarParticipante({
+    nome: form.get("nome"),
+    tipoChave: form.get("tipo_chave"),
+    chavePix: form.get("chave_pix"),
+  });
+}
+
+const NOME_REPETIDO = "23505";
 
 export async function adicionarParticipante(
   roleId: string,
   _: EstadoForm,
   form: FormData,
 ): Promise<EstadoForm> {
-  if (!Uuid.safeParse(roleId).success) return { erro: "Rolê inválido." };
-
-  const nome = String(form.get("nome") ?? "").trim();
-  if (!nome || nome.length > 40) return { erro: "Informe um nome (até 40 caracteres)." };
-
-  const chaveDigitada = String(form.get("chave_pix") ?? "").trim();
-  let chavePix: string | null = null;
-  if (chaveDigitada) {
-    chavePix = normalizarChavePix(String(form.get("tipo_chave")) as TipoChavePix, chaveDigitada);
-    if (!chavePix) return { erro: "Chave Pix inválida para o tipo escolhido." };
-  }
-
-  const { error } = await bancoDeDados()
-    .from("participantes")
-    .insert({ role_id: roleId, nome, chave_pix: chavePix });
-  if (error) {
-    return { erro: error.code === "23505" ? "Já existe alguém com esse nome." : "Erro ao adicionar." };
-  }
-  revalidatePath(`/r/${roleId}`);
-  return { ok: true };
-}
-
-/** Garante que os participantes informados pertencem a este rolê. */
-async function participantesDoRole(roleId: string, ids: string[]) {
-  const { data } = await bancoDeDados()
-    .from("participantes")
-    .select("id")
-    .eq("role_id", roleId)
-    .in("id", ids);
-  return new Set((data ?? []).map((p) => p.id));
-}
-
-export async function adicionarGasto(roleId: string, _: EstadoForm, form: FormData): Promise<EstadoForm> {
-  if (!Uuid.safeParse(roleId).success) return { erro: "Rolê inválido." };
-
-  const descricao = String(form.get("descricao") ?? "").trim();
-  const valorCentavos = reaisParaCentavos(String(form.get("valor") ?? ""));
-  const pagoPor = String(form.get("pago_por") ?? "");
-  const divididoEntre = form.getAll("dividido_entre").map(String);
-
-  if (!descricao || descricao.length > 80) return { erro: "Descreva o gasto (até 80 caracteres)." };
-  if (!valorCentavos || valorCentavos <= 0 || valorCentavos > 10_000_000) {
-    return { erro: "Valor inválido. Use o formato 12,50." };
-  }
-  if (!divididoEntre.length) return { erro: "Marque quem vai dividir esse gasto." };
-
-  const validos = await participantesDoRole(roleId, [pagoPor, ...divididoEntre]);
-  if (!validos.has(pagoPor) || !divididoEntre.every((id) => validos.has(id))) {
-    return { erro: "Participante inválido." };
-  }
+  if (!ehUuid(roleId)) return ROLE_INVALIDO;
+  const participante = lerParticipante(form);
+  if (!participante.ok) return { erro: participante.erro };
+  if (!(await dentroDoLimite("participante", 60, 3600))) return MUITAS_TENTATIVAS;
 
   const db = bancoDeDados();
-  const { data: gasto, error } = await db
-    .from("gastos")
-    .insert({ role_id: roleId, descricao, valor_centavos: valorCentavos, pago_por: pagoPor })
-    .select("id")
-    .single();
-  if (error) return { erro: "Erro ao salvar o gasto." };
+  const { count } = await db
+    .from("participantes")
+    .select("id", { count: "exact", head: true })
+    .eq("role_id", roleId);
+  if ((count ?? 0) >= LIMITES.participantesPorRole) {
+    return { erro: `O rolê já tem o máximo de ${LIMITES.participantesPorRole} pessoas.` };
+  }
 
-  const { error: erroDivisao } = await db
-    .from("gasto_participantes")
-    .insert(divididoEntre.map((participante_id) => ({ gasto_id: gasto.id, participante_id })));
-  if (erroDivisao) {
-    await db.from("gastos").delete().eq("id", gasto.id);
-    return { erro: "Erro ao salvar o gasto." };
+  const { error } = await db.from("participantes").insert({
+    role_id: roleId,
+    nome: participante.dados.nome,
+    chave_pix: participante.dados.chavePix,
+  });
+  if (error) {
+    return { erro: error.code === NOME_REPETIDO ? "Já existe alguém com esse nome." : "Erro ao adicionar." };
+  }
+  revalidatePath(`/r/${roleId}`);
+  return { ok: true };
+}
+
+export async function editarParticipante(
+  roleId: string,
+  participanteId: string,
+  _: EstadoForm,
+  form: FormData,
+): Promise<EstadoForm> {
+  if (!ehUuid(roleId) || !ehUuid(participanteId)) return ROLE_INVALIDO;
+  const participante = lerParticipante(form);
+  if (!participante.ok) return { erro: participante.erro };
+
+  const { data, error } = await bancoDeDados()
+    .from("participantes")
+    .update({ nome: participante.dados.nome, chave_pix: participante.dados.chavePix })
+    .eq("id", participanteId)
+    .eq("role_id", roleId)
+    .select("id");
+  if (error) {
+    return { erro: error.code === NOME_REPETIDO ? "Já existe alguém com esse nome." : "Erro ao salvar." };
+  }
+  if (!data.length) return { erro: "Pessoa não encontrada." };
+  revalidatePath(`/r/${roleId}`);
+  return { ok: true };
+}
+
+export async function removerParticipante(roleId: string, participanteId: string): Promise<EstadoForm> {
+  if (!ehUuid(roleId) || !ehUuid(participanteId)) return ROLE_INVALIDO;
+  const { data, error } = await bancoDeDados().rpc("remover_participante", {
+    p_role_id: roleId,
+    p_participante_id: participanteId,
+  });
+  if (error) return { erro: "Erro ao remover." };
+  if (!data) return { erro: "Essa pessoa já está em algum gasto ou pagamento. Remova esses lançamentos antes." };
+  revalidatePath(`/r/${roleId}`);
+  return { ok: true };
+}
+
+/** Cria um gasto (gastoId nulo) ou edita um existente. A divisão é gravada na mesma transação. */
+export async function salvarGasto(
+  roleId: string,
+  gastoId: string | null,
+  _: EstadoForm,
+  form: FormData,
+): Promise<EstadoForm> {
+  if (!ehUuid(roleId) || (gastoId !== null && !ehUuid(gastoId))) return ROLE_INVALIDO;
+  const gasto = validarGasto({
+    descricao: form.get("descricao"),
+    valor: form.get("valor"),
+    pagoPor: form.get("pago_por"),
+    divididoEntre: form.getAll("dividido_entre"),
+  });
+  if (!gasto.ok) return { erro: gasto.erro };
+  if (!(await dentroDoLimite("gasto", 200, 3600))) return MUITAS_TENTATIVAS;
+
+  const { data, error } = await bancoDeDados().rpc("salvar_gasto", {
+    p_role_id: roleId,
+    p_gasto_id: gastoId,
+    p_descricao: gasto.dados.descricao,
+    p_valor_centavos: gasto.dados.valorCentavos,
+    p_pago_por: gasto.dados.pagoPor,
+    p_dividido_entre: gasto.dados.divididoEntre,
+  });
+  if (error) return { erro: "Erro ao salvar o gasto." };
+  if (!data) {
+    return { erro: `Participante inválido ou o rolê já tem o máximo de ${LIMITES.gastosPorRole} gastos.` };
   }
 
   revalidatePath(`/r/${roleId}`);
   return { ok: true };
 }
 
-export async function removerGasto(roleId: string, gastoId: string) {
-  if (!Uuid.safeParse(roleId).success || !Uuid.safeParse(gastoId).success) return;
-  await bancoDeDados().from("gastos").delete().eq("id", gastoId).eq("role_id", roleId);
+export async function removerGasto(roleId: string, gastoId: string): Promise<EstadoForm> {
+  if (!ehUuid(roleId) || !ehUuid(gastoId)) return ROLE_INVALIDO;
+  const { error } = await bancoDeDados().from("gastos").delete().eq("id", gastoId).eq("role_id", roleId);
+  if (error) return { erro: "Erro ao remover o gasto." };
   revalidatePath(`/r/${roleId}`);
+  return { ok: true };
 }
 
-export async function marcarPago(roleId: string, de: string, para: string, valorCentavos: number) {
-  if (![roleId, de, para].every((id) => Uuid.safeParse(id).success)) return;
-  if (!Number.isInteger(valorCentavos) || valorCentavos <= 0) return;
+/**
+ * Registra uma transferência do acerto. O servidor recalcula o acerto e só aceita se essa
+ * transferência ainda está pendente, e o banco recusa se o rolê mudou nesse meio tempo.
+ */
+export async function marcarPago(
+  roleId: string,
+  de: string,
+  para: string,
+  valorCentavos: number,
+): Promise<EstadoForm> {
+  if (![roleId, de, para].every(ehUuid)) return ROLE_INVALIDO;
 
-  const validos = await participantesDoRole(roleId, [de, para]);
-  if (!validos.has(de) || !validos.has(para)) return;
+  const dados = await lerRole(roleId);
+  if (!dados) return ROLE_INVALIDO;
+  const pendente = transferenciasPendentes(dados).some(
+    (t) => t.de === de && t.para === para && t.valorCentavos === valorCentavos,
+  );
 
-  await bancoDeDados()
-    .from("pagamentos")
-    .insert({ role_id: roleId, de, para, valor_centavos: valorCentavos });
+  const { data, error } = pendente
+    ? await bancoDeDados().rpc("registrar_pagamento", {
+        p_role_id: roleId,
+        p_de: de,
+        p_para: para,
+        p_valor_centavos: valorCentavos,
+        p_versao: dados.role.versao,
+      })
+    : { data: false, error: null };
+
   revalidatePath(`/r/${roleId}`);
+  if (error) return { erro: "Erro ao registrar o pagamento." };
+  if (!data) return { erro: "O acerto mudou enquanto você olhava. Confira os valores atualizados." };
+  return { ok: true };
+}
+
+export async function desfazerPagamento(roleId: string, pagamentoId: string): Promise<EstadoForm> {
+  if (!ehUuid(roleId) || !ehUuid(pagamentoId)) return ROLE_INVALIDO;
+  const { error } = await bancoDeDados()
+    .from("pagamentos")
+    .delete()
+    .eq("id", pagamentoId)
+    .eq("role_id", roleId);
+  if (error) return { erro: "Erro ao desfazer o pagamento." };
+  revalidatePath(`/r/${roleId}`);
+  return { ok: true };
 }

@@ -76,3 +76,11 @@ export function gerarPixCopiaECola(params: {
 
   return payload + crc16(payload);
 }
+
+/** Deduz o tipo de uma chave já normalizada (para preencher o formulário de edição). */
+export function tipoDaChave(chave: string): TipoChavePix {
+  if (chave.startsWith("+")) return "celular";
+  if (chave.includes("@")) return "email";
+  if (/^\d+$/.test(chave)) return "cpf_cnpj";
+  return "aleatoria";
+}

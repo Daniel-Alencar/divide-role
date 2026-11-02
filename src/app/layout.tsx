@@ -1,12 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import Script from "next/script";
 import { Anuncio } from "@/components/anuncio";
+import { AvisoCookies } from "@/components/aviso-cookies";
+import { URL_DO_SITE } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Divide Rolê",
-  description: "Divida as contas do rolê com os amigos e acerte tudo no Pix, sem instalar nada.",
+  metadataBase: new URL(URL_DO_SITE),
+  title: "Divide Rolê: divida as contas e acerte no Pix",
+  description: "Divida as contas do rolê com os amigos e acerte tudo no Pix, sem cadastro e sem instalar nada.",
+  openGraph: { siteName: "Divide Rolê", locale: "pt_BR", type: "website" },
 };
+
+export const viewport: Viewport = { themeColor: "#6d28d9" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const adsense = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
@@ -22,9 +29,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         )}
         <div className="mx-auto w-full max-w-xl flex-1 px-4 py-8">{children}</div>
-        <footer className="mx-auto w-full max-w-xl px-4 pb-4">
+        <footer className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 pb-6">
           <Anuncio slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_RODAPE} />
+          <nav aria-label="Rodapé" className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-600">
+            <Link href="/" className="hover:underline">
+              Divide Rolê
+            </Link>
+            <Link href="/como-funciona" className="hover:underline">
+              Como funciona
+            </Link>
+            <Link href="/privacidade" className="hover:underline">
+              Privacidade
+            </Link>
+            <Link href="/termos" className="hover:underline">
+              Termos de uso
+            </Link>
+          </nav>
         </footer>
+        {adsense && <AvisoCookies />}
       </body>
     </html>
   );

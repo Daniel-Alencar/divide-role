@@ -81,3 +81,15 @@ export function reaisParaCentavos(texto: string): number | null {
 export function formatarCentavos(centavos: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(centavos / 100);
 }
+
+/** Texto do acerto para colar no grupo. Recebe os nomes já resolvidos. */
+export function resumoDoAcerto(
+  nomeRole: string,
+  transferencias: { de: string; para: string; valorCentavos: number }[],
+  url: string,
+): string {
+  const linhas = transferencias.length
+    ? transferencias.map((t) => `• ${t.de} paga ${formatarCentavos(t.valorCentavos)} para ${t.para}`)
+    : ["Tudo certo! Ninguém deve nada. 🎉"];
+  return [`Acerto do rolê "${nomeRole}":`, ...linhas, "", `Pix com o valor certo: ${url}`].join("\n");
+}

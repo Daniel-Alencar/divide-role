@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calcularSaldos, calcularTransferencias, reaisParaCentavos } from "./acerto.ts";
+import { calcularSaldos, calcularTransferencias, reaisParaCentavos, resumoDoAcerto } from "./acerto.ts";
 
 test("divide igualmente e quem pagou recebe", () => {
   const saldos = calcularSaldos(["ana", "bia", "caio"], [
@@ -52,4 +52,12 @@ test("converte reais digitados para centavos", () => {
   assert.equal(reaisParaCentavos("12.5"), 1250);
   assert.equal(reaisParaCentavos("abc"), null);
   assert.equal(reaisParaCentavos("1,234"), null);
+});
+
+test("resumo do acerto lista as transferências e o link", () => {
+  const texto = resumoDoAcerto("Bar", [{ de: "Bia", para: "Ana", valorCentavos: 3050 }], "https://x/r/1");
+  assert.match(texto, /Acerto do rolê "Bar":/);
+  assert.match(texto, /• Bia paga R\$\s30,50 para Ana/);
+  assert.match(texto, /https:\/\/x\/r\/1$/);
+  assert.match(resumoDoAcerto("Bar", [], "u"), /Ninguém deve nada/);
 });
