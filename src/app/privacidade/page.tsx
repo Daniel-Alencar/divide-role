@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { PaginaTexto } from "@/components/pagina-texto";
+import { metadadosDaPagina } from "@/lib/seo";
 import { EMAIL_CONTATO } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Política de privacidade · Divide Rolê",
-  description: "Quais dados o Divide Rolê guarda, quem pode vê-los, por quanto tempo e como apagá-los.",
-};
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Política de privacidade",
+  descricao: "Quais dados o Divide Rolê guarda, quem pode vê-los, por quanto tempo e como apagá-los.",
+  caminho: "/privacidade",
+});
 
 export default function Privacidade() {
   return (

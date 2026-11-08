@@ -21,7 +21,7 @@ async function dadosOu404(id: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { role } = await dadosOu404((await params).id);
   return {
-    title: `${role.nome} · Divide Rolê`,
+    title: role.nome,
     description: "Lance o que você pagou e veja quanto cada um deve, com Pix já no valor certo.",
     robots: { index: false, follow: false },
   };

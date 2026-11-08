@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DadosEstruturados } from "@/components/dados-estruturados";
+import { metadadosDaPagina } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Como funciona · Divide Rolê",
-  description:
-    "Como dividir a conta do churrasco, da viagem ou do bar com os amigos e acertar tudo no Pix, passo a passo.",
-};
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Como funciona",
+  descricao:
+    "Como dividir a conta do churrasco, da viagem ou do bar com os amigos e acertar tudo no Pix, passo a passo e sem cadastro.",
+  caminho: "/como-funciona",
+});
 
 const perguntas = [
   {
@@ -37,6 +40,17 @@ const perguntas = [
 export default function ComoFunciona() {
   return (
     <main className="flex flex-col gap-8">
+      <DadosEstruturados
+        dados={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: perguntas.map(({ p, r }) => ({
+            "@type": "Question",
+            name: p,
+            acceptedAnswer: { "@type": "Answer", text: r },
+          })),
+        }}
+      />
       <header className="flex flex-col gap-3">
         <h1 className="text-3xl font-bold">Como funciona</h1>
         <p className="text-zinc-600">

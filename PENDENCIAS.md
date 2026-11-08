@@ -6,7 +6,7 @@ Situação em 02/11/2026. Todo o código previsto está pronto e testado. O que 
 
 | Verificação | Situação |
 |---|---|
-| `npm run typecheck`, `npm test` (22 testes) e `npm run build` | ✅ passam |
+| `npm run typecheck`, `npm test` (25 testes) e `npm run build` | ✅ passam |
 | Migrations `0001` e `0002` aplicadas no Supabase (`npm run db:migrate`) | ✅ |
 | Chave anônima não lê nenhuma tabela nem executa nenhuma função do banco | ✅ verificado |
 | Fluxo completo no navegador (teste automatizado, 17 verificações) | ✅ passou |
@@ -50,6 +50,16 @@ O teste ponta a ponta cobriu:
   - Escolha a região das funções igual à do banco (`gru1` para São Paulo).
 - [ ] **Domínio próprio** (por exemplo, `dividerole.com.br`) apontado para a Vercel.
 - [ ] **Revisar os textos de [privacidade](src/app/privacidade/page.tsx) e [termos](src/app/termos/page.tsx).** Foram escritos para este caso de uso, mas não substituem uma revisão jurídica.
+
+### Aparecer na busca
+
+O site já tem títulos, descrições, URLs canônicas, dados estruturados, sitemap e guias. Falta o que depende do site estar no ar:
+
+- [ ] Definir `NEXT_PUBLIC_APP_URL` na Vercel com o domínio final. É a base das URLs canônicas e do sitemap.
+- [ ] Cadastrar o domínio no [Google Search Console](https://search.google.com/search-console). Use a verificação por tag HTML e coloque o código em `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`.
+- [ ] No Search Console, enviar `https://SEU-DOMINIO/sitemap.xml` e pedir a indexação da página inicial e dos guias.
+- [ ] Repetir no [Bing Webmaster Tools](https://www.bing.com/webmasters), com `NEXT_PUBLIC_BING_SITE_VERIFICATION`.
+- [ ] Conseguir links de outros sites (grupos, redes sociais, blogs). É o que mais ajuda um domínio novo a ganhar posição.
 
 ### AdSense
 

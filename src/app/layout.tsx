@@ -3,14 +3,23 @@ import Link from "next/link";
 import Script from "next/script";
 import { Anuncio } from "@/components/anuncio";
 import { AvisoCookies } from "@/components/aviso-cookies";
-import { URL_DO_SITE } from "@/lib/site";
+import { NOME_DO_SITE, URL_DO_SITE } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(URL_DO_SITE),
-  title: "Divide Rolê: divida as contas e acerte no Pix",
+  title: { default: "Dividir conta com amigos e acertar no Pix | Divide Rolê", template: `%s · ${NOME_DO_SITE}` },
   description: "Divida as contas do rolê com os amigos e acerte tudo no Pix, sem cadastro e sem instalar nada.",
-  openGraph: { siteName: "Divide Rolê", locale: "pt_BR", type: "website" },
+  applicationName: NOME_DO_SITE,
+  openGraph: { siteName: NOME_DO_SITE, locale: "pt_BR", type: "website" },
+  twitter: { card: "summary_large_image" },
+  // Códigos das ferramentas de buscadores (Google Search Console e Bing Webmaster Tools).
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION }
+      : undefined,
+  },
 };
 
 export const viewport: Viewport = { themeColor: "#6d28d9" };
@@ -37,6 +46,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <Link href="/como-funciona" className="hover:underline">
               Como funciona
+            </Link>
+            <Link href="/guias" className="hover:underline">
+              Guias
             </Link>
             <Link href="/privacidade" className="hover:underline">
               Privacidade

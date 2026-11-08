@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { PaginaTexto } from "@/components/pagina-texto";
+import { metadadosDaPagina } from "@/lib/seo";
 import { EMAIL_CONTATO } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Termos de uso · Divide Rolê",
-  description: "Regras de uso do Divide Rolê.",
-};
+export const metadata: Metadata = metadadosDaPagina({
+  titulo: "Termos de uso",
+  descricao: "Regras de uso do Divide Rolê: o que o site faz, quem pode editar um rolê e o que não é permitido.",
+  caminho: "/termos",
+});
 
 export default function Termos() {
   return (
