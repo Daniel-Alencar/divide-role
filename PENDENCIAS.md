@@ -53,7 +53,7 @@ O teste ponta a ponta cobriu:
 
 ### Aparecer na busca
 
-O site já tem títulos, descrições, URLs canônicas, dados estruturados, sitemap e guias. Falta o que depende do site estar no ar:
+O site já tem títulos, descrições, URLs canônicas, dados estruturados, sitemap e guias. Falta o que depende do site estar no ar. O detalhe de cada etapa está em [PASSO-A-PASSO-BUSCA.md](PASSO-A-PASSO-BUSCA.md).
 
 - [ ] Definir `NEXT_PUBLIC_APP_URL` na Vercel com o domínio final. É a base das URLs canônicas e do sitemap.
 - [ ] Cadastrar o domínio no [Google Search Console](https://search.google.com/search-console). Use a verificação por tag HTML e coloque o código em `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`.
